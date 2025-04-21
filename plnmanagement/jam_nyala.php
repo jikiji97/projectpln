@@ -19,33 +19,50 @@ if (!empty($selected_month) && !empty($selected_year)) {
 
 mysqli_select_db($conn, $database_name);
 
-$result_total = mysqli_query($conn, "SELECT COUNT(*) AS total FROM $table_name");
-$total_pelanggan = mysqli_fetch_assoc($result_total)['total'];
-
-$result_nyala = mysqli_query($conn, "SELECT COUNT(*) AS nyala FROM $table_name WHERE KDSWITCHING LIKE '%CA01'");
-$nyala = mysqli_fetch_assoc($result_nyala)['nyala'];
-
-$padam = $total_pelanggan - $nyala;
-
 $filter_id = isset($_GET['id_pelanggan']) ? $_GET['id_pelanggan'] : '';
 $filter_nama = isset($_GET['nama_pelanggan']) ? $_GET['nama_pelanggan'] : '';
 $filter_status = isset($_GET['status']) ? $_GET['status'] : '';
+$filter_tarif = isset($_GET['tarif']) ? (array) $_GET['tarif'] : [];
+$filter_daya = isset($_GET['daya']) ? (array) $_GET['daya'] : [];
 
-$query = "SELECT IDPEL, NAMA, TARIP, DAYA, KDSWITCHING FROM $table_name WHERE 1=1";
+$query = "SELECT IDPEL, NAMA, TARIP, DAYA, KDSWITCHING, TGLBAYAR FROM $table_name WHERE 1=1";
 
 if (!empty($filter_id)) {
-    $query .= " AND IDPEL LIKE '%$filter_id%'";
+    $query .= " AND IDPEL LIKE '%" . mysqli_real_escape_string($conn, $filter_id) . "%'";
 }
 if (!empty($filter_nama)) {
-    $query .= " AND NAMA LIKE '%$filter_nama%'";
+    $query .= " AND NAMA LIKE '%" . mysqli_real_escape_string($conn, $filter_nama) . "%'";
 }
 if ($filter_status == 'Nyala') {
     $query .= " AND KDSWITCHING LIKE '%CA01'";
-} elseif ($filter_status == 'Padam') {
+} elseif ($filter_status == 'Mati') {
     $query .= " AND KDSWITCHING NOT LIKE '%CA01'";
+}
+if (!empty($filter_tarif)) {
+    $tarif_in = "'" . implode("','", array_map(function ($item) use ($conn) {
+        return mysqli_real_escape_string($conn, $item);
+    }, $filter_tarif)) . "'";
+    $query .= " AND TARIP IN ($tarif_in)";
+}
+if (!empty($filter_daya)) {
+    $daya_in = "'" . implode("','", array_map(function ($item) use ($conn) {
+        return mysqli_real_escape_string($conn, $item);
+    }, $filter_daya)) . "'";
+    $query .= " AND DAYA IN ($daya_in)";
 }
 
 $result = mysqli_query($conn, $query);
+
+// Ambil total pelanggan (after filtering)
+$result_total = mysqli_query($conn, "SELECT COUNT(*) AS total FROM ($query) AS filtered");
+$total_pelanggan = mysqli_fetch_assoc($result_total)['total'];
+
+// Ambil jumlah pelanggan yang nyala (after filtering)
+$result_nyala = mysqli_query($conn, "$query AND KDSWITCHING LIKE '%CA01'");
+$nyala = mysqli_num_rows($result_nyala);
+
+// Hitung pelanggan padam
+$padam = $total_pelanggan - $nyala;
 ?>
 
 <!DOCTYPE html>
@@ -198,23 +215,88 @@ $result = mysqli_query($conn, $query);
         <h2 class="mb-4">Jam Nyala</h2>
 
         <!-- Filter Form -->
-        <div class="row mb-3 g-2 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label">ID Pelanggan</label>
-                <input type="text" class="form-control" placeholder="Masukkan ID">
+        <form method="GET" action="">
+            <div class="row mb-3 g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">ID Pelanggan</label>
+                    <input type="text" class="form-control" name="id_pelanggan" placeholder="Masukkan ID"
+                        value="<?= htmlspecialchars($filter_id) ?>">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Nama Pelanggan</label>
+                    <input type="text" class="form-control" name="nama_pelanggan" placeholder="Masukkan Nama"
+                        value="<?= htmlspecialchars($filter_nama) ?>">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Pilih Tanggal</label>
+                    <input type="date" class="form-control" name="tanggal">
+                </div>
+                <div class="col-md-3 d-grid">
+                    <button type="submit" class="btn btn-primary">Cari</button>
+                </div>
             </div>
-            <div class="col-md-3">
-                <label class="form-label">Nama Pelanggan</label>
-                <input type="text" class="form-control" placeholder="Masukkan Nama">
+
+            <div class="row mb-3 g-2 align-items-end">
+                <!-- Filter Tarif -->
+                <div class="col-md-3">
+                    <label class="form-label">Pilih Tarif</label>
+                    <div class="custom-multiselect" id="tarifSelect">
+                        <div class="selected" onclick="toggleDropdown('tarifSelect')">
+                            <?= !empty($filter_tarif) ? implode(', ', $filter_tarif) : '-- Pilih --' ?>
+                        </div>
+                        <div class="dropdown">
+                            <?php 
+                            $tarif_options = ['R1', 'R1M', 'B2', 'R2', 'B1', 'R3', 'S2', 'P3', 'P1', 'L', 'I1'];
+                            foreach ($tarif_options as $option): ?>
+                                <label>
+                                    <input type="checkbox" name="tarif[]" value="<?= $option ?>" 
+                                        <?= in_array($option, $filter_tarif) ? 'checked' : '' ?>
+                                        onclick="updateSelectedText('tarifSelect')">
+                                    <?= $option ?>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filter Daya -->
+                <div class="col-md-3">
+                    <label class="form-label">Pilih Daya</label>
+                    <div class="custom-multiselect" id="dayaSelect">
+                        <div class="selected" onclick="toggleDropdown('dayaSelect')">
+                            <?= !empty($filter_daya) ? implode(', ', $filter_daya) : '-- Pilih --' ?>
+                        </div>
+                        <div class="dropdown">
+                            <?php 
+                            $daya_options = ['450', '900', '1300', '2200', '3500', '4400', '5500', '6600', '7700', '10600', '11000', '13200', '16500', '23000', '33000'];
+                            foreach ($daya_options as $option): ?>
+                                <label>
+                                    <input type="checkbox" name="daya[]" value="<?= $option ?>" 
+                                        <?= in_array($option, $filter_daya) ? 'checked' : '' ?>
+                                        onclick="updateSelectedText('dayaSelect')">
+                                    <?= $option ?>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filter Status -->
+                <div class="col-md-3">
+                    <label class="form-label">Pilih Status</label>
+                    <select class="form-select" name="status">
+                        <option value="">-- Pilih --</option>
+                        <option value="Nyala" <?= $filter_status == 'Nyala' ? 'selected' : '' ?>>Nyala</option>
+                        <option value="Mati" <?= $filter_status == 'Mati' ? 'selected' : '' ?>>Mati</option>
+                    </select>
+                </div>
+
+                <!-- Tombol Terapkan -->
+                <div class="col-md-3 d-grid align-self-end">
+                    <button type="submit" class="btn btn-primary">Cari</button>
+                </div>
             </div>
-            <div class="col-md-3">
-                <label class="form-label">Pilih Tanggal</label>
-                <input type="date" class="form-control">
-            </div>
-            <div class="col-md-3 d-grid">
-                <button class="btn btn-primary">Cari</button>
-            </div>
-        </div>
+        </form>
 
         <!-- Statistik -->
         <div class="row mb-3">
@@ -238,20 +320,122 @@ $result = mysqli_query($conn, $query);
                     <th>Tarif</th>
                     <th>Daya</th>
                     <th>Status</th>
+                    <th>Jam Nyala</th>
+                    <th>Tanggal</th>
+                    <th>Bulan</th>
+                    <th>Tahun</th>
                 </tr>
             </thead>
             <tbody>
-            <!-- Data dari database -->
+                <?php while ($row = mysqli_fetch_assoc($result)) {
+                    $status = (strpos($row['KDSWITCHING'], 'CA01') !== false) ?
+                        "<span class='badge bg-success'>Nyala</span>" :
+                        "<span class='badge bg-danger'>Padam</span>";
+                    $jam_nyala = rand(1, 12) . " jam";
+
+                    // Ambil tanggal dari data
+                    $tanggal_lengkap = $row['TGLBAYAR']; // contoh: 2025-04-20
+                    $tanggal = date('d', strtotime($tanggal_lengkap));
+                    $bulan = date('m', strtotime($tanggal_lengkap));
+                    $tahun = date('Y', strtotime($tanggal_lengkap));
+
+                    echo "<tr>
+                            <td>{$row['IDPEL']}</td>
+                            <td>{$row['NAMA']}</td>
+                            <td>{$row['TARIP']}</td>
+                            <td>{$row['DAYA']}</td>
+                            <td>{$status}</td>
+                            <td>{$jam_nyala}</td>
+                            <td>{$tanggal}</td>
+                            <td>{$bulan}</td>
+                            <td>{$tahun}</td>
+                          </tr>";
+                } ?>
             </tbody>
         </table>
     </div>
 
+    <style>
+        .custom-multiselect {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .custom-multiselect .selected {
+            border: 1px solid #ccc;
+            padding: 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #fff;
+        }
+
+        .custom-multiselect .dropdown {
+            display: none;
+            position: absolute;
+            background-color: #fff;
+            width: 100%;
+            border: 1px solid #ccc;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            padding: 5px;
+        }
+
+        .custom-multiselect.open .dropdown {
+            display: block;
+        }
+
+        .custom-multiselect .dropdown label {
+            display: block;
+            margin-bottom: 5px;
+        }
+    </style>
+
+    <script>
+        function toggleDropdown(id) {
+            const el = document.getElementById(id);
+            el.classList.toggle("open");
+        }
+
+        document.addEventListener("click", function (e) {
+            ['tarifSelect', 'dayaSelect'].forEach(id => {
+                const container = document.getElementById(id);
+                if (!container.contains(e.target)) {
+                    container.classList.remove("open");
+                    updateSelectedText(container);
+                }
+            });
+        });
+
+        function updateSelectedText(container) {
+            const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+            const selectedDiv = container.querySelector('.selected');
+            const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+
+            if (selected.length === 0) {
+                selectedDiv.innerText = "-- Pilih --";
+            } else if (selected.length === 1) {
+                selectedDiv.innerText = selected[0];
+            } else {
+                selectedDiv.innerText = `${selected.length} selected`;
+            }
+        }
+    </script>
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script>
-        $(document).ready(function() {
+        $(document).ready(function () {
             $('#jamNyalaTable').DataTable();
         });
     </script>
+
+    <!-- Copyright -->
+    <footer class="bg-light py-3 mt-5">
+    <div class="container">
+        <p class="text-center mb-0">&copy; 2025 PLN Data Management | All rights reserved.</p>
+    </div>
+    </footer>
 </body>
 </html>
