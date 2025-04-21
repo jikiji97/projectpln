@@ -168,7 +168,7 @@ if (!isset($_SESSION['admin'])) {
       </div>
 
       <div class="col-lg-6 d-none d-lg-block">
-        <img src="https://scontent.fsub9-1.fna.fbcdn.net/v/t51.75761-15/482903834_18362640115193190_1798138328590238832_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=127cfc&_nc_eui2=AeG_QZk9zd9GVesYRku1xLW-gzB8IpztxxiDMHwinO3HGDQi_kRiOUG02SXql5mvA5XlDMzENec9GfldKAssUdaZ&_nc_ohc=NSsibO9UDvQQ7kNvwGKJhep&_nc_oc=AdmjQQ36FGzK0Dv8zgO8_x-p1w9TrSY9gOVJlV33YmM2zAAMYETMq_YpB_V3tLiACTI&_nc_zt=23&_nc_ht=scontent.fsub9-1.fna&_nc_gid=djixYUlsgxV-JgOIM3vKJA&oh=00_AfFvuDntFgpwMthpIU80HGjB48tt39a_KPtZcCbx6oAEGw&oe=67FA4037" alt="PLN Dashboard" class="img-fluid">
+      <img src="dashboard.jpg" alt="Dashboard" class="img-fluid" />
       </div>
     </div>
   </div>
