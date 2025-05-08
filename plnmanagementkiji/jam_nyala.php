@@ -77,13 +77,13 @@ $padam = $total_pelanggan - $nyala;
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css" />
     
     <!-- jQuery and DataTables JS -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/litepicker/dist/litepicker.js"></script>
 
     <style>
         body {
@@ -291,7 +291,9 @@ $padam = $total_pelanggan - $nyala;
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Pilih Tanggal</label>
-                    <input type="text" class="form-control" name="tanggal_range" id="tanggal_range" placeholder="Pilih tanggal atau rentang" autocomplete="off" value="<?= isset($_GET['tanggal_range']) ? htmlspecialchars($_GET['tanggal_range']) : '' ?>">
+                    <input type="text" class="form-control" id="filterTanggal" name="filterTanggal" readonly placeholder="Pilih tanggal...">
+                    <input type="hidden" name="tanggal_awal" id="tanggal_awal">
+                    <input type="hidden" name="tanggal_akhir" id="tanggal_akhir">
                 </div>
                 <div class="col-md-3 d-grid">
                     <button type="submit" class="btn btn-primary">Cari</button>
@@ -486,7 +488,7 @@ $padam = $total_pelanggan - $nyala;
             var mm = String(today.getMonth() + 1).padStart(2, '0');
             var yyyy = today.getFullYear();
             today = yyyy + '-' + mm + '-' + dd;
-            $('#tanggal_range').val(today);
+            $('#tanggal').val(today);
 
             var table = $('#jamNyalaTable').DataTable({
                 processing: true,
@@ -506,7 +508,8 @@ $padam = $total_pelanggan - $nyala;
                             filter_daya: $('input[name="daya[]"]:checked').map(function() {
                                 return this.value;
                             }).get(),
-                            tanggal: $('#tanggal_range').val(),
+                            tanggal_awal: $('#tanggal_awal').val(),
+                            tanggal_akhir: $('#tanggal_akhir').val(),
                             jam_nyala_min: $('input[name="jam_nyala_min"]').val(),
                             jam_nyala_max: $('input[name="jam_nyala_max"]').val()
                         };
@@ -563,12 +566,12 @@ $padam = $total_pelanggan - $nyala;
             });
 
             // Auto-refresh when date changes
-            $('#tanggal_range').on('change', function() {
+            $('#tanggal').on('change', function() {
                 table.ajax.reload();
             });
 
             // Update export date when date changes
-            $('#tanggal_range').on('change', function() {
+            $('#tanggal').on('change', function() {
                 $('#export_tanggal').val($(this).val());
             });
 
@@ -612,12 +615,28 @@ $padam = $total_pelanggan - $nyala;
                 jamNyalaSlider.noUiSlider.set([min, max]);
             });
 
-            // Inisialisasi flatpickr untuk input tanggal (mode range)
-            flatpickr('#tanggal_range', {
-                mode: 'range',
-                dateFormat: 'Y-m-d',
-                allowInput: true,
-                locale: 'id',
+            // Inisialisasi Litepicker untuk filter tanggal
+            const picker = new Litepicker({
+                element: document.getElementById('filterTanggal'),
+                singleMode: false,
+                format: 'YYYY-MM-DD',
+                autoApply: true,
+                lang: 'id',
+                setup: (picker) => {
+                    picker.on('selected', (start, end) => {
+                        $('#tanggal_awal').val(start ? start.format('YYYY-MM-DD') : '');
+                        $('#tanggal_akhir').val(end ? end.format('YYYY-MM-DD') : '');
+                    });
+                }
+            });
+            // Set default value jika ada dari GET
+            $(document).ready(function() {
+                var tglAwal = '<?= isset($_GET['tanggal_awal']) ? htmlspecialchars($_GET['tanggal_awal']) : '' ?>';
+                var tglAkhir = '<?= isset($_GET['tanggal_akhir']) ? htmlspecialchars($_GET['tanggal_akhir']) : '' ?>';
+                if (tglAwal) $('#tanggal_awal').val(tglAwal);
+                if (tglAkhir) $('#tanggal_akhir').val(tglAkhir);
+                if (tglAwal && tglAkhir) $('#filterTanggal').val(tglAwal + ' - ' + tglAkhir);
+                else if (tglAwal) $('#filterTanggal').val(tglAwal);
             });
         });
     </script>
