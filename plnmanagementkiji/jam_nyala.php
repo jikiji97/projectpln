@@ -77,11 +77,13 @@ $padam = $total_pelanggan - $nyala;
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     
     <!-- jQuery and DataTables JS -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
     <style>
         body {
@@ -289,8 +291,7 @@ $padam = $total_pelanggan - $nyala;
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Pilih Tanggal</label>
-                    <input type="date" class="form-control" name="tanggal" id="tanggal" 
-                        value="<?php echo date('Y-m-d'); ?>" max="<?php echo date('Y-m-d'); ?>">
+                    <input type="text" class="form-control" name="tanggal_range" id="tanggal_range" placeholder="Pilih tanggal atau rentang" autocomplete="off" value="<?= isset($_GET['tanggal_range']) ? htmlspecialchars($_GET['tanggal_range']) : '' ?>">
                 </div>
                 <div class="col-md-3 d-grid">
                     <button type="submit" class="btn btn-primary">Cari</button>
@@ -485,7 +486,7 @@ $padam = $total_pelanggan - $nyala;
             var mm = String(today.getMonth() + 1).padStart(2, '0');
             var yyyy = today.getFullYear();
             today = yyyy + '-' + mm + '-' + dd;
-            $('#tanggal').val(today);
+            $('#tanggal_range').val(today);
 
             var table = $('#jamNyalaTable').DataTable({
                 processing: true,
@@ -505,7 +506,7 @@ $padam = $total_pelanggan - $nyala;
                             filter_daya: $('input[name="daya[]"]:checked').map(function() {
                                 return this.value;
                             }).get(),
-                            tanggal: $('#tanggal').val(),
+                            tanggal: $('#tanggal_range').val(),
                             jam_nyala_min: $('input[name="jam_nyala_min"]').val(),
                             jam_nyala_max: $('input[name="jam_nyala_max"]').val()
                         };
@@ -562,12 +563,12 @@ $padam = $total_pelanggan - $nyala;
             });
 
             // Auto-refresh when date changes
-            $('#tanggal').on('change', function() {
+            $('#tanggal_range').on('change', function() {
                 table.ajax.reload();
             });
 
             // Update export date when date changes
-            $('#tanggal').on('change', function() {
+            $('#tanggal_range').on('change', function() {
                 $('#export_tanggal').val($(this).val());
             });
 
@@ -609,6 +610,14 @@ $padam = $total_pelanggan - $nyala;
                 var max = parseInt($('#jamNyalaInputMax').val()) || 160;
                 if (min > max) { var t = min; min = max; max = t; }
                 jamNyalaSlider.noUiSlider.set([min, max]);
+            });
+
+            // Inisialisasi flatpickr untuk input tanggal (mode range)
+            flatpickr('#tanggal_range', {
+                mode: 'range',
+                dateFormat: 'Y-m-d',
+                allowInput: true,
+                locale: 'id',
             });
         });
     </script>
